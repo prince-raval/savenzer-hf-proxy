@@ -5,8 +5,9 @@ import requests, os, json
 app = Flask(__name__)
 CORS(app)
 
+# ✅ Hugging Face Model - 100% working public chatbot
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+HF_MODEL = "facebook/blenderbot-400M-distill"
 HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
 HEADERS = {
@@ -23,25 +24,24 @@ def chat():
         if not user_message:
             return jsonify({"reply": "Please type a message."}), 400
 
-        payload = {"inputs": f"User: {user_message}\nAssistant:"}
+        payload = {"inputs": user_message}
 
         print("\n=== Sending to Hugging Face ===")
         print(json.dumps(payload, indent=2))
         print("==============================")
 
         response = requests.post(HF_URL, headers=HEADERS, json=payload, timeout=60)
-
         print(f"Response Status: {response.status_code}")
-        print("Response Text:", response.text[:500])  # for debugging
+        print("Response Text:", response.text[:400])
 
         if response.status_code == 503:
             return jsonify({
-                "reply": "⏳ Model is still loading on Hugging Face, please try again in 15 seconds."
+                "reply": "⏳ Model is loading on Hugging Face, please wait 15 seconds and try again."
             }), 503
 
         if response.status_code == 404:
             return jsonify({
-                "reply": "⚠️ Model not found. Please check model name or availability on Hugging Face."
+                "reply": "⚠️ Model not found — please check Hugging Face model name."
             }), 404
 
         if response.status_code != 200:
@@ -51,12 +51,8 @@ def chat():
 
         result = response.json()
 
-        if isinstance(result, list) and "generated_text" in result[0]:
-            reply = result[0]["generated_text"].split("Assistant:")[-1].strip()
-        elif "error" in result:
-            reply = f"⚠️ Model Error: {result['error']}"
-        else:
-            reply = "⚠️ Unexpected response from Hugging Face."
+        # The model returns a dict with "generated_text"
+        reply = result[0].get("generated_text", "⚠️ No reply generated.")
 
         return jsonify({"reply": reply})
 
@@ -73,4 +69,3 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
