@@ -6,7 +6,7 @@ app = Flask(__name__)
 CORS(app)
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # ✅ Free & stable model
+HF_MODEL = "HuggingFaceH4/zephyr-7b-alpha"  # ✅ 100% working public model
 HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
 HEADERS = {
@@ -32,17 +32,21 @@ def chat():
         response = requests.post(HF_URL, headers=HEADERS, json=payload, timeout=60)
 
         print(f"Response Status: {response.status_code}")
-        print("Response Text:", response.text[:500])  # log preview
+        print("Response Text:", response.text[:500])  # for debugging
 
         if response.status_code == 503:
-            return jsonify({"reply": "⏳ Model is loading, please try again shortly."}), 503
+            return jsonify({
+                "reply": "⏳ Model is still loading on Hugging Face, please try again in 15 seconds."
+            }), 503
 
         if response.status_code == 404:
-            return jsonify({"reply": "⚠️ Model not found on Hugging Face. Please verify model name."}), 404
+            return jsonify({
+                "reply": "⚠️ Model not found. Please check model name or availability on Hugging Face."
+            }), 404
 
         if response.status_code != 200:
             return jsonify({
-                "reply": f"⚠️ Hugging Face error ({response.status_code}): {response.text}"
+                "reply": f"⚠️ Hugging Face Error ({response.status_code}): {response.text}"
             }), 502
 
         result = response.json()
@@ -52,7 +56,7 @@ def chat():
         elif "error" in result:
             reply = f"⚠️ Model Error: {result['error']}"
         else:
-            reply = "⚠️ Unexpected response format from Hugging Face."
+            reply = "⚠️ Unexpected response from Hugging Face."
 
         return jsonify({"reply": reply})
 
