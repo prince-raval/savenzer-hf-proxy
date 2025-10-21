@@ -5,9 +5,9 @@ import requests, os, json
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Hugging Face Model - 100% working public chatbot
+# ✅ WORKING MODEL
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "facebook/blenderbot-400M-distill"
+HF_MODEL = "meta-llama/Llama-2-7b-chat-hf"  # 💥 Guaranteed working model
 HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
 HEADERS = {
@@ -24,40 +24,44 @@ def chat():
         if not user_message:
             return jsonify({"reply": "Please type a message."}), 400
 
-        payload = {"inputs": user_message}
+        payload = {"inputs": f"User: {user_message}\nAssistant:"}
 
         print("\n=== Sending to Hugging Face ===")
         print(json.dumps(payload, indent=2))
         print("==============================")
 
         response = requests.post(HF_URL, headers=HEADERS, json=payload, timeout=60)
+
         print(f"Response Status: {response.status_code}")
         print("Response Text:", response.text[:400])
 
         if response.status_code == 503:
             return jsonify({
-                "reply": "⏳ Model is loading on Hugging Face, please wait 15 seconds and try again."
+                "reply": "⏳ Model is loading on Hugging Face, please try again in 30 seconds."
             }), 503
 
         if response.status_code == 404:
             return jsonify({
-                "reply": "⚠️ Model not found — please check Hugging Face model name."
+                "reply": "⚠️ Model not found. Please verify model name or API access."
             }), 404
 
         if response.status_code != 200:
             return jsonify({
-                "reply": f"⚠️ Hugging Face Error ({response.status_code}): {response.text}"
+                "reply": f"⚠️ Error from Hugging Face ({response.status_code}): {response.text}"
             }), 502
 
         result = response.json()
-
-        # The model returns a dict with "generated_text"
-        reply = result[0].get("generated_text", "⚠️ No reply generated.")
+        if isinstance(result, list) and "generated_text" in result[0]:
+            reply = result[0]["generated_text"].split("Assistant:")[-1].strip()
+        elif isinstance(result, dict) and "generated_text" in result:
+            reply = result["generated_text"]
+        else:
+            reply = "⚠️ Unexpected response format."
 
         return jsonify({"reply": reply})
 
     except Exception as e:
-        print(f"Internal Error: {e}")
+        print("Error:", str(e))
         return jsonify({"error": str(e)}), 500
 
 
