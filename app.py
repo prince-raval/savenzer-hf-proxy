@@ -6,7 +6,7 @@ app = Flask(__name__)
 CORS(app)
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "HuggingFaceH4/zephyr-7b-alpha"  # ✅ 100% working public model
+HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
 HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
 HEADERS = {
@@ -73,3 +73,4 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
