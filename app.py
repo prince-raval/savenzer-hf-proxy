@@ -6,7 +6,7 @@ app = Flask(__name__)
 CORS(app)
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "HuggingFaceH4/zephyr-7b-beta" 
+HF_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # ✅ Free & stable model
 HF_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
 HEADERS = {
@@ -32,32 +32,27 @@ def chat():
         response = requests.post(HF_URL, headers=HEADERS, json=payload, timeout=60)
 
         print(f"Response Status: {response.status_code}")
-        print("Response Text:", response.text[:400])  # preview of API response
+        print("Response Text:", response.text[:500])  # log preview
 
-        # If Hugging Face API is still loading the model
         if response.status_code == 503:
-            return jsonify({
-                "reply": "⏳ The model is loading on Hugging Face. Please try again in a few seconds."
-            }), 503
+            return jsonify({"reply": "⏳ Model is loading, please try again shortly."}), 503
 
-        # If Hugging Face gives any other error
+        if response.status_code == 404:
+            return jsonify({"reply": "⚠️ Model not found on Hugging Face. Please verify model name."}), 404
+
         if response.status_code != 200:
             return jsonify({
                 "reply": f"⚠️ Hugging Face error ({response.status_code}): {response.text}"
             }), 502
 
-        try:
-            result = response.json()
-        except json.JSONDecodeError:
-            return jsonify({"reply": "⚠️ Invalid response from Hugging Face."}), 502
+        result = response.json()
 
-        # Extract model output
         if isinstance(result, list) and "generated_text" in result[0]:
             reply = result[0]["generated_text"].split("Assistant:")[-1].strip()
         elif "error" in result:
             reply = f"⚠️ Model Error: {result['error']}"
         else:
-            reply = "⚠️ No valid output received from model."
+            reply = "⚠️ Unexpected response format from Hugging Face."
 
         return jsonify({"reply": reply})
 
@@ -74,4 +69,3 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
